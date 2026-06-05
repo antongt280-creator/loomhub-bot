@@ -1,5 +1,7 @@
 import os
 import threading
+import hashlib
+from datetime import datetime
 from flask import Flask
 import telebot
 from telebot import types
@@ -8,7 +10,7 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "LoomHub Сервер Активен!"
+    return "LoomHub Multi-Script Server Active!"
 
 def run_web_server():
     app.run(host='0.0.0.0', port=10000)
@@ -17,7 +19,23 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 bot = telebot.TeleBot(BOT_TOKEN)
 
 CHANNEL_USERNAME = "@loompairik_scripts"
-CORRECT_KEY = "LOOM_FREE_ROT"
+PREMIUM_KEY = "LOOM_PREM_XYZ"
+
+SCRIPTS_DATA = {
+    "LoomHub Main": "SECRET_MAIN_SALT_123",
+    "LoomHub Tycoon": "SECRET_TYCOON_SALT_456",
+    "LoomHub Admin": "SECRET_ADMIN_SALT_789"
+}
+
+user_tokens = {}      
+user_referrals = {}   
+referred_by = {}      
+
+def generate_daily_key(salt):
+    current_date = datetime.utcnow().strftime("%Y-%m-%d")
+    raw_string = f"{current_date}_{salt}"
+    hashed = hashlib.md5(raw_string.encode()).hexdigest().upper()
+    return f"LOOM_{hashed[:8]}"
 
 def check_subscription(user_id):
     try:
@@ -30,31 +48,114 @@ def check_subscription(user_id):
 
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn_key = types.KeyboardButton("🔑 Получить бесплатный ключ")
-    markup.add(btn_key)
-    
-    welcome_text = "🤖 Добро пожаловать в LoomHub Key Bot!\n\nДля получения суточного ключа нажмите кнопку ниже."
-    bot.send_message(message.chat.id, welcome_text, reply_markup=markup)
-
-@bot.message_handler(func=lambda msg: msg.text == "🔑 Получить бесплатный ключ")
-def get_key_msg(message):
     user_id = message.from_user.id
     
-    if check_subscription(user_id):
-        key_text = f"✅ Подписка подтверждена!\n\nТвой ключ на сегодня:\n`{CORRECT_KEY}`\n\nНажми на него, чтобы скопировать. Вставь его в LoomHub в игре!"
-        bot.send_message(message.chat.id, key_text, parse_mode="Markdown")
-    else:
+    if user_id not in user_tokens:
+        user_tokens[user_id] = 0
+        user_referrals[user_id] = []
+    
+    args = message.text.split()
+    if len(args) > 1:
+        inviter_id = int(args[0])
+        if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
+            referred_by[user_id] = inviter_id
+            if inviter_id in user_tokens:
+                user_tokens[inviter_id] += 1
+                user_referrals[inviter_id].append(user_id)
+                try:
+                    bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
+                except Exception:
+                    pass
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row(types.KeyboardButton("🔑 Get Key (Select Script)"))
+    markup.row(types.KeyboardButton("👤 Profile / Referrals"), types.KeyboardButton("👑 Premium Key"))
+    
+    welcome_text = (
+        "🤖 *Welcome to LoomHub Multi-Script Bot!*\n\n"
+        f"To get keys for any of our scripts, you must be subscribed to our official channel: {CHANNEL_USERNAME}\n\n"
+        "Use the menu below to get keys or check your referral balance."
+    )
+    bot.send_message(message.chat.id, welcome_text, parse_mode="Markdown", reply_markup=markup)
+
+@bot.message_handler(func=lambda msg: msg.text == "🔑 Get Key (Select Script)")
+def choose_script_msg(message):
+    user_id = message.from_user.id
+    
+    if not check_subscription(user_id):
         markup = types.InlineKeyboardMarkup()
-        btn_link = types.InlineKeyboardButton("➡️ Подписаться на канал", url=f"https://t.me{CHANNEL_USERNAME.lstrip('@')}")
+        btn_link = types.InlineKeyboardButton("➡️ Subscribe to Channel", url=f"https://t.me{CHANNEL_USERNAME.lstrip('@')}")
         markup.add(btn_link)
         
-        fail_text = f"❌ Ошибка! Вы не подписаны на наш канал {CHANNEL_USERNAME}.\n\nПодпишитесь и повторите попытку!"
-        bot.send_message(message.chat.id, fail_text, reply_markup=markup)
+        fail_text = (
+            f"❌ *Access Denied!*\n\nYou are not subscribed to our channel {CHANNEL_USERNAME}.\n\n"
+            "Please click the button below to subscribe, then try again!"
+        )
+        bot.send_message(message.chat.id, fail_text, parse_mode="Markdown", reply_markup=markup)
+        return
+
+    markup = types.InlineKeyboardMarkup()
+    for script_name in SCRIPTS_DATA.keys():
+        btn = types.InlineKeyboardButton(script_name, callback_data=f"getkey_{script_name}")
+        markup.add(btn)
+        
+    bot.send_message(message.chat.id, "⬇️ *Select the script you want to get a key for:*", parse_mode="Markdown", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("getkey_"))
+def send_script_key(call):
+    user_id = call.from_user.id
+    script_name = call.data.replace("getkey_", "")
+    
+    if not check_subscription(user_id):
+        bot.answer_callback_query(call.id, "Error: You unsubscribed!")
+        return
+        
+    salt = SCRIPTS_DATA.get(script_name, "DEFAULT")
+    daily_key = generate_daily_key(salt)
+    
+    key_text = f"✅ *Key for {script_name}:*\n\n`{daily_key}`\n\nTap to copy it. This key changes automatically every 24 hours. Paste it into the script GUI inside Roblox!"
+    
+    bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=key_text, parse_mode="Markdown")
+    bot.answer_callback_query(call.id, "Key generated successfully!")
+
+@bot.message_handler(func=lambda msg: msg.text == "👤 Profile / Referrals")
+def profile_msg(message):
+    user_id = message.from_user.id
+    tokens = user_tokens.get(user_id, 0)
+    refs_count = len(user_referrals.get(user_id, []))
+    bot_info = bot.get_me()
+    ref_link = f"https://t.me{bot_info.username}?start={user_id}"
+    
+    profile_text = (
+        f"👤 *Your LoomHub Profile:*\n\n"
+        f"💰 Token Balance: *{tokens}*\n"
+        f"👥 Friends Invited: *{refs_count}*\n\n"
+        f"🔗 *Your Referral Link:* \n`{ref_link}`\n\n"
+        f"_(Share this link with friends. You will get +1 Token for every friend who joins!)_"
+    )
+    bot.send_message(message.chat.id, profile_text, parse_mode="Markdown")
+
+@bot.message_handler(func=lambda msg: msg.text == "👑 Premium Key")
+def premium_msg(message):
+    user_id = message.from_user.id
+    tokens = user_tokens.get(user_id, 0)
+    
+    if tokens >= 5:
+        user_tokens[user_id] -= 5
+        prem_text = f"👑 *Congratulations! You exchanged 5 tokens for Premium!*\n\nYour permanent Premium Key:\n`{PREMIUM_KEY}`\n\nUse it in-game to activate exclusive hidden hub functions!"
+        bot.send_message(message.chat.id, prem_text, parse_mode="Markdown")
+    else:
+        prem_fail = (
+            f"👑 *LoomHub Premium Access:*\n\n"
+            f"Premium key unlocks all script features forever with no ads or daily key resets.\n"
+            f"Cost: *5 Tokens*.\n\n"
+            f"❌ You currently have *{tokens}/5* tokens.\n"
+            "Invite friends using your link in the 'Profile' section to earn tokens!"
+        )
+        bot.send_message(message.chat.id, prem_fail, parse_mode="Markdown")
 
 if __name__ == "__main__":
     t = threading.Thread(target=run_web_server)
     t.start()
-    print("Бот успешно запущен в фоновом режиме веб-сервера!")
     bot.infinity_polling()
-    
+                     
