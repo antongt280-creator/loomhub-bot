@@ -13,9 +13,9 @@ bot = telebot.TeleBot(BOT_TOKEN)
 CHANNEL_USERNAME = "@loompairik_scripts"
 
 SCRIPTS_DATA = {
-    "LoomHub Main": "SECRET_MAIN_SALT_123",
-    "LoomHub Tycoon": "SECRET_TYCOON_SALT_456",
-    "LoomHub Admin": "SECRET_ADMIN_SALT_789"
+    "LoomHub Main": 137,
+    "LoomHub Tycoon": 244,
+    "LoomHub Admin": 355
 }
 
 user_tokens = {}      
@@ -24,7 +24,7 @@ referred_by = {}
 
 @app.route('/', methods=['GET'])
 def home():
-    return "LoomHub Multi-Script Webhook Server Active!"
+    return "LoomHub Webhook Server Active!"
 
 @app.route('/' + BOT_TOKEN, methods=['POST'])
 def getMessage():
@@ -33,11 +33,12 @@ def getMessage():
     bot.process_new_updates([update])
     return "!", 200
 
-def generate_daily_key(salt):
-    current_date = datetime.utcnow().strftime("%Y-%m-%d")
-    raw_string = f"{current_date}_{salt}"
-    hashed = hashlib.md5(raw_string.encode()).hexdigest().upper()
-    return f"LOOM_{hashed[:8]}"
+def generate_daily_key(multiplier):
+    current_date = datetime.utcnow().strftime("%Y%m%d")
+    seed = sum(ord(char) for char in current_date)
+    result_num = (seed * multiplier) + 54321
+    hashed_part = hex(result_num)[2:].upper()
+    return f"LOOM_{hashed_part[:6]}"
 
 def check_subscription(user_id):
     try:
@@ -112,8 +113,8 @@ def send_script_key(call):
         bot.answer_callback_query(call.id, "Error: You unsubscribed!")
         return
         
-    salt = SCRIPTS_DATA.get(script_name, "DEFAULT")
-    daily_key = generate_daily_key(salt)
+    multiplier = SCRIPTS_DATA.get(script_name, 137)
+    daily_key = generate_daily_key(multiplier)
     
     key_text = f"✅ *Key for {script_name}:*\n\n`{daily_key}`\n\nTap to copy it. This key changes automatically every 24 hours. Paste it into the script GUI inside Roblox!"
     
@@ -139,6 +140,6 @@ def profile_msg(message):
 
 if __name__ == "__main__":
     bot.remove_webhook()
-    bot.set_webhook(url="https://loomhub-bot.onrender.com" + '/' + BOT_TOKEN)
+    bot.set_webhook(url="https://onrender.com" + BOT_TOKEN)
     app.run(host='0.0.0.0', port=10000)
-            
+    
