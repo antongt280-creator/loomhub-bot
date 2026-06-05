@@ -1,25 +1,16 @@
 import os
-import threading
 import hashlib
 from datetime import datetime
-from flask import Flask
+from flask import Flask, request
 import telebot
 from telebot import types
 
 app = Flask('')
 
-@app.route('/')
-def home():
-    return "LoomHub Multi-Script Server Active!"
-
-def run_web_server():
-    app.run(host='0.0.0.0', port=10000)
-
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 bot = telebot.TeleBot(BOT_TOKEN)
 
 CHANNEL_USERNAME = "@loompairik_scripts"
-PREMIUM_KEY = "LOOM_PREM_XYZ"
 
 SCRIPTS_DATA = {
     "LoomHub Main": "SECRET_MAIN_SALT_123",
@@ -30,6 +21,17 @@ SCRIPTS_DATA = {
 user_tokens = {}      
 user_referrals = {}   
 referred_by = {}      
+
+@app.route('/', methods=['GET'])
+def home():
+    return "LoomHub Multi-Script Webhook Server Active!"
+
+@app.route('/' + BOT_TOKEN, methods=['POST'])
+def getMessage():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
 
 def generate_daily_key(salt):
     current_date = datetime.utcnow().strftime("%Y-%m-%d")
@@ -56,7 +58,7 @@ def start_cmd(message):
     
     args = message.text.split()
     if len(args) > 1:
-        inviter_id = int(args[0])
+        inviter_id = int(args[1])
         if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
             referred_by[user_id] = inviter_id
             if inviter_id in user_tokens:
@@ -69,7 +71,7 @@ def start_cmd(message):
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("🔑 Get Key (Select Script)"))
-    markup.row(types.KeyboardButton("👤 Profile / Referrals"), types.KeyboardButton("👑 Premium Key"))
+    markup.row(types.KeyboardButton("👤 Profile / Referrals"))
     
     welcome_text = (
         "🤖 *Welcome to LoomHub Multi-Script Bot!*\n\n"
@@ -135,27 +137,9 @@ def profile_msg(message):
     )
     bot.send_message(message.chat.id, profile_text, parse_mode="Markdown")
 
-@bot.message_handler(func=lambda msg: msg.text == "👑 Premium Key")
-def premium_msg(message):
-    user_id = message.from_user.id
-    tokens = user_tokens.get(user_id, 0)
-    
-    if tokens >= 5:
-        user_tokens[user_id] -= 5
-        prem_text = f"👑 *Congratulations! You exchanged 5 tokens for Premium!*\n\nYour permanent Premium Key:\n`{PREMIUM_KEY}`\n\nUse it in-game to activate exclusive hidden hub functions!"
-        bot.send_message(message.chat.id, prem_text, parse_mode="Markdown")
-    else:
-        prem_fail = (
-            f"👑 *LoomHub Premium Access:*\n\n"
-            f"Premium key unlocks all script features forever with no ads or daily key resets.\n"
-            f"Cost: *5 Tokens*.\n\n"
-            f"❌ You currently have *{tokens}/5* tokens.\n"
-            "Invite friends using your link in the 'Profile' section to earn tokens!"
-        )
-        bot.send_message(message.chat.id, prem_fail, parse_mode="Markdown")
-
 if __name__ == "__main__":
-    t = threading.Thread(target=run_web_server)
-    t.start()
-    bot.infinity_polling()
-                     
+    bot.remove_webhook()
+    render_url = os.environ.get('RENDER_EXTERNAL_URL', 'https://onrender.com')
+    bot.set_webhook(url=render_url + '/' + BOT_TOKEN)
+    app.run(host='0.0.0.0', port=10000)
+        
