@@ -58,7 +58,7 @@ def start_cmd(message):
     
     args = message.text.split()
     if len(args) > 1:
-        inviter_id = int(args[1])
+        inviter_id = int(args)
         if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
             referred_by[user_id] = inviter_id
             if inviter_id in user_tokens:
@@ -139,7 +139,6 @@ def profile_msg(message):
 
 if __name__ == "__main__":
     bot.remove_webhook()
-    render_url = os.environ.get('RENDER_EXTERNAL_URL', 'https://onrender.com')
-    bot.set_webhook(url=render_url + '/' + BOT_TOKEN)
+    bot.set_webhook(url="https://loomhub-bot.onrender.com" + '/' + BOT_TOKEN)
     app.run(host='0.0.0.0', port=10000)
-        
+            
