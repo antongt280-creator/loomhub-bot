@@ -4,7 +4,6 @@ import secrets
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiohttp import web
 
 API_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = '@loompairik_scripts' 
@@ -14,7 +13,6 @@ bot = Bot(token=API_TOKEN, parse_mode="Markdown")
 dp = Dispatcher(bot)
 
 users_db = {}
-valid_keys = {}
 
 async def is_user_subscribed(user_id: int) -> bool:
     try:
@@ -76,8 +74,6 @@ async def free_key_handler(message: types.Message):
     users_db[user_id]['last_key'] = generated_key
     users_db[user_id]['key_time'] = current_time
     
-    valid_keys[generated_key] = {"type": "Free", "expires": current_time + 86400}
-    
     await message.reply(f"🔑 Your 24-hour key:\n\n`{generated_key}`\n\nCopy it and paste into your executor.")
 
 @dp.message_handler(lambda message: message.text == "👤 My Profile & Referral")
@@ -105,31 +101,8 @@ async def buy_premium_handler(message: types.Message):
     users_db[user_id]['tokens'] -= 5
     premium_key = f"LOOM_PREM_{secrets.token_hex(6).upper()}"
     
-    valid_keys[premium_key] = {"type": "Premium", "expires": time.time() + (86400 * 30)}
-    
     await message.reply(f"⭐ **Purchase successful!** 5 tokens deducted.\n\nYour Premium Key (30 Days):\n`{premium_key}`")
 
-async def handle_roblox_request(request):
-    key = request.rel_url.query.get('key')
-    if not key or key not in valid_keys:
-        return web.json_response({"valid": False, "message": "Key is invalid or expired."})
-    
-    key_data = valid_keys[key]
-    if time.time() > key_data["expires"]:
-        del valid_keys[key]
-        return web.json_response({"valid": False, "message": "Key has expired."})
-        
-    return web.json_response({"valid": True, "keyType": key_data["type"]})
-
-async def start_background_tasks(app):
-    import asyncio
-    asyncio.create_task(dp.start_polling())
-
-app = web.Application()
-app.router.add_get('/validate', handle_roblox_request)
-app.on_startup.append(start_background_tasks)
-
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
-    web.run_app(app, host='0.0.0.0', port=port)
-  
+    executor.start_polling(dp, skip_updates=True)
+        
