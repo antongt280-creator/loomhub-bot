@@ -1,7 +1,22 @@
 import os
+import threading
 from datetime import datetime
 import telebot
 from telebot import types
+from flask import Flask
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "LoomHub Server Active!"
+
+def run_web_server():
+    try:
+        port = int(os.environ.get("PORT", 10000))
+        app.run(host='0.0.0.0', port=port)
+    except Exception:
+        pass
 
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -52,5 +67,9 @@ def get_key_msg(message):
     bot.send_message(message.chat.id, key_text, parse_mode="Markdown")
 
 if __name__ == "__main__":
+    t = threading.Thread(target=run_web_server)
+    t.daemon = True
+    t.start()
+    
     bot.polling(none_stop=True)
     
