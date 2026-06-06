@@ -12,7 +12,6 @@ def home():
     return "LoomHub Server Active!"
 
 def run_web_server():
-    # Automatic port management for Render stability
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
 
@@ -53,7 +52,7 @@ def start_cmd(message):
     args = message.text.split()
     if len(args) > 1:
         try:
-            inviter_id = int(args[0])
+            inviter_id = int(args[1])
             if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
                 referred_by[user_id] = inviter_id
                 if inviter_id in user_tokens:
@@ -63,7 +62,7 @@ def start_cmd(message):
                         bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
                     except Exception:
                         pass
-        except ValueError:
+        except Exception:
             pass
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -101,10 +100,9 @@ def get_key_msg(message):
 def profile_msg(message):
     user_id = message.from_user.id
     tokens = user_tokens.get(user_id, 0)
+    refs_count = len(user_referrals.get(user_id, []))
 
-refs_count = len(user_referrals.get(user_id, []))
-    
-    try:
+try:
         bot_info = bot.get_me()
         ref_link = f"https://t.me{bot_info.username}?start={user_id}"
     except Exception:
