@@ -49,18 +49,17 @@ def start_cmd(message):
         user_referrals[user_id] = []
     
     args = message.text.split()
-    if len(args) > 1:
-        if args[1].isdigit():
-            inviter_id = int(args[1])
-            if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
-                referred_by[user_id] = inviter_id
-                if inviter_id in user_tokens:
-                    user_tokens[inviter_id] += 1
-                    user_referrals[inviter_id].append(user_id)
-                    try:
-                        bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
-                    except Exception:
-                        pass
+    if len(args) > 1 and args[1].isdigit():
+        inviter_id = int(args[1])
+        if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
+            referred_by[user_id] = inviter_id
+            if inviter_id in user_tokens:
+                user_tokens[inviter_id] += 1
+                user_referrals[inviter_id].append(user_id)
+                try:
+                    bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
+                except Exception:
+                    pass
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("🔑 Get Free Key"))
@@ -116,8 +115,9 @@ if __name__ == "__main__":
     t = threading.Thread(target=run_web_server)
     t.start()
     try:
-        bot.remove_webhook()
+        bot.delete_webhook(drop_pending_updates=True)
     except Exception:
         pass
-    bot.infinity_polling()
+    # skip_pending_updates=True will force clean error 409 conflict
+    bot.infinity_polling(skip_pending_updates=True)
     
