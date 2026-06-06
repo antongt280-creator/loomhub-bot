@@ -44,26 +44,22 @@ def check_subscription(user_id):
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
     user_id = message.from_user.id
-    
     if user_id not in user_tokens:
         user_tokens[user_id] = 0
         user_referrals[user_id] = []
     
     args = message.text.split()
-    if len(args) > 1:
-        try:
-            inviter_id = int(args[1])
-            if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
-                referred_by[user_id] = inviter_id
-                if inviter_id in user_tokens:
-                    user_tokens[inviter_id] += 1
-                    user_referrals[inviter_id].append(user_id)
-                    try:
-                        bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+    if len(args) > 1 and args[1].isdigit():
+        inviter_id = int(args[1])
+        if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
+            referred_by[user_id] = inviter_id
+            if inviter_id in user_tokens:
+                user_tokens[inviter_id] += 1
+                user_referrals[inviter_id].append(user_id)
+                try:
+                    bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
+                except Exception:
+                    pass
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("🔑 Get Free Key"))
@@ -79,12 +75,10 @@ def start_cmd(message):
 @bot.message_handler(func=lambda msg: msg.text == "🔑 Get Free Key")
 def get_key_msg(message):
     user_id = message.from_user.id
-    
     if not check_subscription(user_id):
         markup = types.InlineKeyboardMarkup()
         btn_link = types.InlineKeyboardButton("➡️ Subscribe to Channel", url=f"https://t.me{CHANNEL_USERNAME.lstrip('@')}")
         markup.add(btn_link)
-        
         fail_text = (
             f"❌ *Access Denied!*\n\nYou are not subscribed to our channel {CHANNEL_USERNAME}.\n\n"
             f"You MUST subscribe to {CHANNEL_USERNAME} to unlock the bot! Click the button below to join, then try again."
@@ -101,11 +95,12 @@ def profile_msg(message):
     user_id = message.from_user.id
     tokens = user_tokens.get(user_id, 0)
     refs_count = len(user_referrals.get(user_id, []))
-
-try:
+    
+    try:
         bot_info = bot.get_me()
         ref_link = f"https://t.me{bot_info.username}?start={user_id}"
-    except Exception:
+
+except Exception:
         ref_link = "Error generating link. Try again later."
     
     profile_text = (
