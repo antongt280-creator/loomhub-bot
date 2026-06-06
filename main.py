@@ -12,7 +12,9 @@ def home():
     return "LoomHub Server Active!"
 
 def run_web_server():
-    app.run(host='0.0.0.0', port=10000)
+    # Automatic port management for Render stability
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
 
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -50,16 +52,19 @@ def start_cmd(message):
     
     args = message.text.split()
     if len(args) > 1:
-        inviter_id = int(args[0])
-        if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
-            referred_by[user_id] = inviter_id
-            if inviter_id in user_tokens:
-                user_tokens[inviter_id] += 1
-                user_referrals[inviter_id].append(user_id)
-                try:
-                    bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
-                except Exception:
-                    pass
+        try:
+            inviter_id = int(args[0])
+            if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
+                referred_by[user_id] = inviter_id
+                if inviter_id in user_tokens:
+                    user_tokens[inviter_id] += 1
+                    user_referrals[inviter_id].append(user_id)
+                    try:
+                        bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
+                    except Exception:
+                        pass
+        except ValueError:
+            pass
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("🔑 Get Free Key"))
@@ -89,27 +94,32 @@ def get_key_msg(message):
         return
 
     daily_key = generate_daily_key()
-    key_text = f"✅ *Key Generated Successfully!*\n\nYour key for today:\n`{daily_key}`\n\nTap to copy it. This key changes automatically every 24 hours. Paste it into the script GUI inside Roblox!"
+    key_text = f"✅ *Key Generated Successfully!*\n\nYour key for today:\n{daily_key}\n\nTap to copy it. This key changes automatically every 24 hours. Paste it into the script GUI inside Roblox!"
     bot.send_message(message.chat.id, key_text, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda msg: msg.text == "👤 Profile / Referrals")
 def profile_msg(message):
     user_id = message.from_user.id
     tokens = user_tokens.get(user_id, 0)
-    refs_count = len(user_referrals.get(user_id, []))
-    bot_info = bot.get_me()
-    ref_link = f"https://t.me{bot_info.username}?start={user_id}"
+
+refs_count = len(user_referrals.get(user_id, []))
+    
+    try:
+        bot_info = bot.get_me()
+        ref_link = f"https://t.me{bot_info.username}?start={user_id}"
+    except Exception:
+        ref_link = "Error generating link. Try again later."
     
     profile_text = (
         f"👤 *Your LoomHub Profile:*\n\n"
         f"💰 Token Balance: *{tokens}*\n"
         f"👥 Friends Invited: *{refs_count}*\n\n"
-        f"🔗 *Your Referral Link:* \n`{ref_link}`\n\n"
+        f"🔗 *Your Referral Link:* \n{ref_link}\n\n"
         f"_(Share this link with friends. You will get +1 Token for every friend who joins!)_"
     )
     bot.send_message(message.chat.id, profile_text, parse_mode="Markdown")
 
-if __name__ == "__main__":
+if name == "main":
     t = threading.Thread(target=run_web_server)
     t.start()
     try:
@@ -117,4 +127,3 @@ if __name__ == "__main__":
     except Exception:
         pass
     bot.infinity_polling()
-  
