@@ -49,17 +49,18 @@ def start_cmd(message):
         user_referrals[user_id] = []
     
     args = message.text.split()
-    if len(args) > 1 and args[1].isdigit():
-        inviter_id = int(args[1])
-        if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
-            referred_by[user_id] = inviter_id
-            if inviter_id in user_tokens:
-                user_tokens[inviter_id] += 1
-                user_referrals[inviter_id].append(user_id)
-                try:
-                    bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
-                except Exception:
-                    pass
+    if len(args) > 1:
+        if args[1].isdigit():
+            inviter_id = int(args[1])
+            if inviter_id != user_id and user_id not in referred_by and user_tokens[user_id] == 0:
+                referred_by[user_id] = inviter_id
+                if inviter_id in user_tokens:
+                    user_tokens[inviter_id] += 1
+                    user_referrals[inviter_id].append(user_id)
+                    try:
+                        bot.send_message(inviter_id, "🎉 A new friend registered via your link! You received +1 Token.")
+                    except Exception:
+                        pass
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("🔑 Get Free Key"))
@@ -87,7 +88,7 @@ def get_key_msg(message):
         return
 
     daily_key = generate_daily_key()
-    key_text = f"✅ *Key Generated Successfully!*\n\nYour key for today:\n{daily_key}\n\nTap to copy it. This key changes automatically every 24 hours. Paste it into the script GUI inside Roblox!"
+    key_text = f"✅ *Key Generated Successfully!*\n\nYour key for today:\n`{daily_key}`\n\nTap to copy it. This key changes automatically every 24 hours. Paste it into the script GUI inside Roblox!"
     bot.send_message(message.chat.id, key_text, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda msg: msg.text == "👤 Profile / Referrals")
@@ -99,8 +100,7 @@ def profile_msg(message):
     try:
         bot_info = bot.get_me()
         ref_link = f"https://t.me{bot_info.username}?start={user_id}"
-
-except Exception:
+    except Exception:
         ref_link = "Error generating link. Try again later."
     
     profile_text = (
@@ -112,7 +112,7 @@ except Exception:
     )
     bot.send_message(message.chat.id, profile_text, parse_mode="Markdown")
 
-if name == "main":
+if __name__ == "__main__":
     t = threading.Thread(target=run_web_server)
     t.start()
     try:
@@ -120,3 +120,4 @@ if name == "main":
     except Exception:
         pass
     bot.infinity_polling()
+    
