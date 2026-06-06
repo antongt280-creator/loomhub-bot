@@ -72,8 +72,9 @@ def get_key_msg(message):
 def profile_msg(message):
     profile_text = (
         f"👤 *Your LoomHub Profile:*\n\n"
-        f"💰 Token Balance: *0*\n\n"
-        f"_(Referral system is currently disabled)_"
+        f"💰 Token Balance: *0*\n"
+        f"👥 Friends Invited: *0*\n\n"
+        f"_(Referral system is temporarily under maintenance)_"
     )
     bot.send_message(message.chat.id, profile_text, parse_mode="Markdown")
 
