@@ -10,7 +10,7 @@ app = Flask('')
 def home():
     return "LoomHub Server Active!"
 
-BOT_TOKEN = os.environ.get('BOT_TOKEN', '8820922188:AAE9zCF3_jJl1_OPOn1CqxmlkyfRdzwc-04')
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
 bot = telebot.TeleBot(BOT_TOKEN)
 
 RENDER_URL = "https://onrender.com"
