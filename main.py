@@ -1,9 +1,8 @@
 import os
-import threading
 from datetime import datetime
+from flask import Flask, request
 import telebot
 from telebot import types
-from flask import Flask
 
 app = Flask('')
 
@@ -11,16 +10,10 @@ app = Flask('')
 def home():
     return "LoomHub Server Active!"
 
-def run_web_server():
-    try:
-        port = int(os.environ.get("PORT", 10000))
-        app.run(host='0.0.0.0', port=port)
-    except Exception:
-        pass
-
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
+BOT_TOKEN = os.environ.get('BOT_TOKEN', '8820922188:AAE9zCF3_jJl1_OPOn1CqxmlkyfRdzwc-04')
 bot = telebot.TeleBot(BOT_TOKEN)
 
+RENDER_URL = "https://onrender.com"
 CHANNEL_USERNAME = "@loompairik_scripts"
 MULTIPLIER = 137
 
@@ -37,6 +30,13 @@ def check_subscription(user_id):
         return member.status in ['member', 'administrator', 'creator']
     except Exception:
         return False
+
+@app.route('/' + BOT_TOKEN, methods=['POST'])
+def get_message():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
 
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
@@ -67,9 +67,9 @@ def get_key_msg(message):
     bot.send_message(message.chat.id, key_text, parse_mode="Markdown")
 
 if __name__ == "__main__":
-    t = threading.Thread(target=run_web_server)
-    t.daemon = True
-    t.start()
+    bot.remove_webhook()
+    bot.set_webhook(url=RENDER_URL + '/' + BOT_TOKEN)
     
-    bot.polling(none_stop=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
     
